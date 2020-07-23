@@ -1,4 +1,4 @@
--- {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Scraper where
 
@@ -11,6 +11,8 @@ import Helpers
 import Ling
 import System.IO
 import Text.HTML.TagSoup
+import Text.HTML.Scalpel
+import Data.Char
 
 downloadPage :: String -> String -> IO ()
 downloadPage url dist =
@@ -39,32 +41,35 @@ downloadSpanishDict dist =
               (dist <> "/" <> l <> ".html") 
 
 extractConjugationLinks :: String -> IO [String]
-extractConjugationLinks dist_ =
+extractConjugationLinks dist_ = 
   sequence (map aux letters)
-  >>= pure . concat
+  >>= pure . concat . map unpackMaybeList
   where
-    letters = [stringOfChar x | x <- ['a'..'z']]
-    dist    = normalizePath dist_
-    aux l   = 
-      openFile 
-        (dist <> "/" <> l <> ".html") 
-        ReadMode
-      >>= hGetContents
-      >>= pure . parseTags
-      >>= pure . sections (~== "<a>")
-      >>= pure . map (fromAttrib "href" . head)
-      >>= pure . filter (isPrefixOf "/translate" <&> isVerbSpanish)
-      >>= pure . map (drop 10) -- drops "/translate"
-      >>= pure . map ("https://www.spanishdict.com/conjugate" <>)
+    linkPrefix    = "https://www.spanishdict.com/conjugate"
+    dist          = normalizePath dist_
+    letters       = map stringOfChar ['a'..'z']
+    aux l         = openFile 
+                      (dist <> "/" <> l <> ".html") 
+                      ReadMode
+                    >>= hGetContents 
+                    >>= getLinks
+    getLinks html = pure $ scrapeStringLike html scraper
+    condition     = isInfixOf "/translate" <&> isVerbSpanish
+    scraper       = chroots "a" $ do
+                      href <- attr "href" anySelector
+                      guard (condition href)
+  
+                      pure $ linkPrefix <> (drop 10 href)
+                      
 
 downloadVerbs :: String -> [String] -> IO [()]
 downloadVerbs dist_ urls = 
   sequence 
   $ map aux 
-  $ drop 1 
-  $ dropWhile (/= (prefix <> "desguarnecer")) urls
+  {-$ drop 1 
+  $ dropWhile (/= (prefix <> "vaticinar"))-} urls
   where 
-    prefix  = "https://www.spanishdict.com/conjugate/"
+    prefix  = "https://www.spanishdict.com/conjugate/" :: String
     dist    = normalizePath dist_
     aux url = downloadPageConditional 
                 url 
@@ -73,3 +78,30 @@ downloadVerbs dist_ urls =
               >> putStrLn file
               where 
                 file = drop (length prefix) url
+
+extractConjugations :: String -> FilePath -> IO [[[String]]]
+extractConjugations dist_ file = 
+  openFile file ReadMode
+  >>= hGetContents
+  >>= pure 
+      . unpackMaybeList 
+      . aux
+  >>= pure 
+      . groupByLengths
+      . partitionToLengths 
+        [ 2           -- 1x2
+        , 5,5,5,5,5,5 -- 6x5
+        , 4,4,4,4,4,4 -- 6x4
+        , 2,2,2,2,2 ] -- 5x2
+  >>= pure . map transpose
+  where 
+    dist              = normalizePath dist_
+    isStringLower str = all (isSpace <||> isLower) str
+    aux html          = scrapeStringLike html scraper
+    condition w       = (isStringLower w) && not (w `elem` toExclude)
+    toExclude         = ["yo", "tú", "nosotros", "vosotros", ""]
+    predicates        = map hasClass ["_1btShz4h", "_3HlR1KX5", "P-yt87tk","_1b8PdQhU"]
+    scraper           = chroots ("a" @: predicates) $ do
+                          word <- text anySelector
+                          guard (condition word)
+                          pure word

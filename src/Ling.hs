@@ -28,15 +28,14 @@ assemblePattern (base, irs, suffix) =
   where 
     aux w (i, l) = insertAt l i w
 
--- Merge adjacent irregularities (?)
 stemWIrreg :: Conjugation -> [Pattern]
 stemWIrreg ws = map (aux [] 0 baseStem) ws
   where
     baseStem = foldl1 intersect' ws
     aux rest i base w
       | isExhausted         = (baseStem, reverse rest, w)
-      | head base == head w = aux rest (i+1) (tail base) (tail w)
-      | otherwise           = aux ((i-1, head w):rest) (i+1) base (tail w)
+      | head base == head w = aux rest (i + 1) (tail base) (tail w)
+      | otherwise           = aux ((i - 1, head w) : rest) (i + 1) base (tail w)
       where 
         isExhausted = length base == 0 
                       || length w == 0

@@ -5,6 +5,9 @@ import Data.List
 (<&>) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
 (<&>) a b c = a c && b c
 
+(<||>) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
+(<||>) a b c = a c || b c
+
 stringOfChar :: Char -> String
 stringOfChar c = [c]
 
@@ -41,3 +44,19 @@ intersect' a b = aux [] a b
         el          = head a
         isExhausted = length    a == 0
                       || length b == 0
+
+unpackMaybeList :: Maybe [a] -> [a]
+unpackMaybeList Nothing  = []
+unpackMaybeList (Just a) = a
+
+-- Groups an array into sub-arrays of given lengths
+partitionToLengths :: Ord a => [Int] -> [a] -> [[a]]
+partitionToLengths ls xs = aux [] xs ls
+  where 
+    aux acc [] _      = reverse acc
+    aux acc _ []      = reverse acc
+    aux acc xs (l:ls) = aux ((take l xs) : acc) (drop l xs) ls
+
+groupByLengths :: Foldable t => [t a] -> [[t a]]
+groupByLengths xs = groupBy hasEqLen xs
+  where hasEqLen a b  = length a == length b
