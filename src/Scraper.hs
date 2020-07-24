@@ -3,16 +3,15 @@
 module Scraper where
 
 import Network.HTTP.Conduit
-import qualified Data.ByteString.Lazy.Char8 as B8
 import Control.Monad
 import Data.List
-import qualified Data.Text as T
 import Helpers
 import Ling
 import System.IO
-import Text.HTML.TagSoup
 import Text.HTML.Scalpel
 import Data.Char
+import qualified Data.Text as T
+import qualified Data.ByteString.Lazy.Char8 as B8
 
 downloadPage :: String -> String -> IO ()
 downloadPage url dist =
@@ -105,3 +104,17 @@ extractConjugations dist_ file =
                           word <- text anySelector
                           guard (condition word)
                           pure word
+
+
+testVerb :: String -> IO ()
+testVerb v = 
+  extractConjugations "" ("verbs/spanish2/" <> v <> ".html") 
+  >>= print . aux
+  where 
+
+    aux ws = ws' == ws
+      where ws' = map 
+                (map ((map assemblePattern) . stemWIrreg))
+                ws
+    
+   

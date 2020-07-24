@@ -1,6 +1,7 @@
 module Helpers where
 
 import Data.List
+import System.IO
 
 (<&>) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
 (<&>) a b c = a c && b c
@@ -32,6 +33,7 @@ insertAt x i ys =
 {- 
   addresses an error, as perceived, of `intersect` returning `"fallecer" `intersect` "fallezco" == "fallece"`; 
   instead, returns "fallec", for "fallezco" only contains one 'e', whereas the result contains two.
+  Deprecated, for it fails when one of the sets still contains duplicates of a certain common element after the other set is already exhausted. Example: `intersect' "fuere" "fuéremos"`
 -}
 intersect' :: Ord a => [a] -> [a] -> [a]
 intersect' a b = aux [] a b
@@ -60,3 +62,13 @@ partitionToLengths ls xs = aux [] xs ls
 groupByLengths :: Foldable t => [t a] -> [[t a]]
 groupByLengths xs = groupBy hasEqLen xs
   where hasEqLen a b  = length a == length b
+
+readLines :: FilePath -> IO [String]
+readLines file =
+  openFile file ReadMode
+  >>= hGetContents
+  >>= pure . lines
+
+longest :: [String] -> String
+longest xs = maximumBy aux xs
+  where aux a b = compare (length a) (length b)
