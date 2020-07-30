@@ -2,3 +2,5 @@
 *~
 **/*.html
 dist
+log*
+verbsList.txt

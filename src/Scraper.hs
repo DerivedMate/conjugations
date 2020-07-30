@@ -8,9 +8,10 @@ import Data.List
 import Helpers
 import Ling
 import System.IO
+import System.Directory
 import Text.HTML.Scalpel
 import Data.Char
-import qualified Data.Text as T
+import Control.Exception
 import qualified Data.ByteString.Lazy.Char8 as B8
 
 downloadPage :: String -> String -> IO ()
@@ -61,12 +62,9 @@ extractConjugationLinks dist_ =
                       pure $ linkPrefix <> (drop 10 href)
                       
 
-downloadVerbs :: String -> [String] -> IO [()]
+downloadVerbs :: String -> [String] -> IO ()
 downloadVerbs dist_ urls = 
-  sequence 
-  $ map aux 
-  {-$ drop 1 
-  $ dropWhile (/= (prefix <> "vaticinar"))-} urls
+  mapM_ aux urls
   where 
     prefix  = "https://www.spanishdict.com/conjugate/" :: String
     dist    = normalizePath dist_
@@ -78,43 +76,75 @@ downloadVerbs dist_ urls =
               where 
                 file = drop (length prefix) url
 
-extractConjugations :: String -> FilePath -> IO [[[String]]]
-extractConjugations dist_ file = 
+extractConjugations :: FilePath -> IO [[[String]]]
+extractConjugations file = 
   openFile file ReadMode
   >>= hGetContents
   >>= pure 
       . unpackMaybeList 
-      . aux
+      . split
   >>= pure 
       . groupByLengths
       . partitionToLengths 
-        [ 2           -- 1x2
+        [ 3           -- 1x3
         , 5,5,5,5,5,5 -- 6x5
         , 4,4,4,4,4,4 -- 6x4
         , 2,2,2,2,2 ] -- 5x2
   >>= pure . map transpose
   where 
-    dist              = normalizePath dist_
     isStringLower str = all (isSpace <||> isLower) str
+    split html        = do
+      v  <- inf html
+      vs <- aux html
+      pure (v:vs) 
     aux html          = scrapeStringLike html scraper
-    condition w       = (isStringLower w) && not (w `elem` toExclude)
+    inf html          = scrapeStringLike html infinitiveScraper
+    condition w       = (isStringLower w) && (not $ elem w toExclude)
     toExclude         = ["yo", "tú", "nosotros", "vosotros", ""]
     predicates        = map hasClass ["_1btShz4h", "_3HlR1KX5", "P-yt87tk","_1b8PdQhU"]
+    infinitiveScraper :: Monad m0 => ScraperT String m0 String
+    infinitiveScraper = chroot ("h1" @: [hasClass ("_1xnuU6l-")]) $ text anySelector 
     scraper           = chroots ("a" @: predicates) $ do
-                          word <- text anySelector
-                          guard (condition word)
-                          pure word
+                          word  <- text anySelector
+                          word' <- (pure . splitAtEl ',') word
+                          guard (condition word')
+                          pure word'
 
 
 testVerb :: String -> IO ()
-testVerb v = 
-  extractConjugations "" ("verbs/spanish2/" <> v <> ".html") 
+testVerb file = 
+  extractConjugations file
   >>= print . aux
   where 
-
-    aux ws = ws' == ws
-      where ws' = map 
-                (map ((map assemblePattern) . stemWIrreg))
-                ws
+    {-f a          = catch (pure $ printer $ aux a) errHandler 
+                   >>= dp
+    errHandler :: ConjugationError -> IO String          
+    errHandler e = pure $ show e
+    dp a = do
+      putStrLn a
+      hPutStrLn stderr a
+    printer r 
+      | r         = verb <> "\t" <> "Success"
+      | otherwise = verb <> "\t" <> "!!FAIL!!"
+    -}
+    verb    = takeWhile isLetter 
+              $ dropWhileWhole (elem '/') file
+    aux ws_ = ws'
+      where 
+        ws' = map 
+              (map ( {-(map assemblePattern) .-} stemWIrreg ))
+              ws
+        ws  = normalizeConjugations ws_
     
    
+removeNonVerbs :: [FilePath] -> IO ()
+removeNonVerbs fs = mapM_ aux fs
+  where
+    determinant = "subjunctive"
+    aux f = do
+      exists <- doesFileExist f
+      txt <- openFile f ReadMode >>= hGetContents
+
+      when (exists && (not $ isInfixOf determinant txt)) $ do 
+        putStrLn ("removing: " <> f)
+        removeFile f

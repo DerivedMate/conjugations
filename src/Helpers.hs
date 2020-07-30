@@ -1,7 +1,11 @@
 module Helpers where
 
 import Data.List
+import Control.Monad
 import System.IO
+import Debug.Trace
+
+type Arrow = (Int, Int)
 
 (<&>) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
 (<&>) a b c = a c && b c
@@ -12,6 +16,10 @@ import System.IO
 stringOfChar :: Char -> String
 stringOfChar c = [c]
 
+boolOfMaybe :: Ord a => Maybe a -> Bool
+boolOfMaybe (Just _) = True
+boolOfMaybe Nothing  = False
+
 normalizePath :: String -> String
 normalizePath dist
   | endWithDash = normalizePath $ init dist
@@ -19,6 +27,11 @@ normalizePath dist
   where 
     endWithDash = (last dist) == '/'
 
+{-
+  Inserts the given item right after the given index.
+  If the index is greater than the total length, the item is inserted at the end.
+  On the other hand, if it's less than 0, it is inserted at the beginning.
+-}
 insertAt :: Ord a => a -> Int -> [a] -> [a]
 insertAt x i ys = 
   map snd
@@ -47,6 +60,67 @@ intersect' a b = aux [] a b
         isExhausted = length    a == 0
                       || length b == 0
 
+-- type Point = (Int, Int) -- position, offset
+
+-- intOfPoint :: Point -> Int
+-- intOfPoint (p, o) = p + o
+
+lengthOfArrow :: Arrow -> Int
+lengthOfArrow (a, b) = abs(a - b)
+  -- where 
+  --   [a', b'] = map intOfPoint [a, b]
+
+doLinesIntersect :: Arrow -> Arrow -> Bool
+doLinesIntersect a@(i, j) b@(k, l) =
+  signum (i - k) /= signum (j - l)
+  && lengthOfArrow a /= lengthOfArrow b
+  -- where 
+  --   [i', j', k', l'] = map intOfPoint [i, j, k, l]
+
+reduceArrows :: [Arrow] -> [Arrow]
+reduceArrows as = aux [] as
+  where
+    finder (i, j) (k, l) = i == k || j == l
+    aux past []     = reverse past
+    aux past (a:as)
+      | wasAlready = aux past as
+      | otherwise  = aux (a:past) as
+      where
+        wasAlready = boolOfMaybe $ find (finder a) past
+
+-- Ignores an intersection if the arrows are of the same length
+findIntersections :: Arrow -> [Arrow] -> [Arrow]
+findIntersections a as = filter (doLinesIntersect a) as
+
+isStraight :: Arrow -> Bool
+isStraight (a, b) = a == b
+  -- where 
+  --   [a', b'] = map intOfPoint [a, b]
+
+common :: String -> String -> String
+common a b = aux aa0
+  where 
+    aa0        = (ars0 aInd bInd)
+    aInd       = ind a
+    bInd       = ind b
+    ars0 as bs = [ (i, j) 
+                 | (a, i) <- as
+                 , (b, j) <- bs
+                 , a == b
+                 ]
+    ind a      = zip a [0..]
+    deInd a    = fst $ unzip a
+    aux ars 
+      | any (uncurry doLinesIntersect) [(a, b) | a <- ars, b <- ars] = 
+        aux $ filter (f ars) ars
+      | otherwise = map ((a !!) . fst) $ reduceArrows ars
+    f ars a = all (>= len) intersectLengths
+      where 
+        intersectLengths = map lengthOfArrow intersects
+        intersects = findIntersections a ars
+        len = lengthOfArrow a
+
+
 unpackMaybeList :: Maybe [a] -> [a]
 unpackMaybeList Nothing  = []
 unpackMaybeList (Just a) = a
@@ -69,6 +143,17 @@ readLines file =
   >>= hGetContents
   >>= pure . lines
 
-longest :: [String] -> String
+-- longest :: (Ord a, Foldable t) => t a -> a
 longest xs = maximumBy aux xs
   where aux a b = compare (length a) (length b)
+
+dropWhileWhole :: Ord a => ([a] -> Bool) -> [a] -> [a]
+dropWhileWhole f (x:xs) 
+  | f xs      = dropWhileWhole f xs
+  | otherwise = xs
+
+splitAtEl :: Ord a => a -> [a] -> [a]
+splitAtEl a as = fst $ break (== a) as
+
+subsequences' :: Ord a => [a] -> [[a]]
+subsequences' as = filterM (const [True, False]) as
