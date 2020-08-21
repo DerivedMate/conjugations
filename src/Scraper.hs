@@ -13,6 +13,7 @@ import Text.HTML.Scalpel
 import Data.Char
 import Control.Exception
 import qualified Data.ByteString.Lazy.Char8 as B8
+import Group
 
 downloadPage :: String -> String -> IO ()
 downloadPage url dist =
@@ -114,9 +115,9 @@ extractConjugations file =
 testVerb :: String -> IO ()
 testVerb file = 
   extractConjugations file
-  >>= print . aux
+  >>= f -- print . aux
   where 
-    {-f a          = catch (pure $ printer $ aux a) errHandler 
+    f a          = catch (pure $ printer $ g a) errHandler 
                    >>= dp
     errHandler :: ConjugationError -> IO String          
     errHandler e = pure $ show e
@@ -126,17 +127,67 @@ testVerb file =
     printer r 
       | r         = verb <> "\t" <> "Success"
       | otherwise = verb <> "\t" <> "!!FAIL!!"
-    -}
+    
     verb    = takeWhile isLetter 
               $ dropWhileWhole (elem '/') file
-    aux ws_ = ws'
+    g ws_ = ws' == ws
       where 
         ws' = map 
-              (map ( {-(map assemblePattern) .-} stemWIrreg ))
+              (map ( (map assemblePattern) . stemWIrreg ))
               ws
         ws  = normalizeConjugations ws_
+        
+    aux ws_ = map 
+              (map ( (map assemblePattern) . stemWIrreg ))
+              (normalizeConjugations ws_)
     
-   
+
+processVerbs :: [Indexed (Embedded Category)] -> (Int, FilePath) -> IO [Indexed (Embedded Category)]
+processVerbs cs (n, path) = do
+  cons       <- extractConjugations path
+  categories <- pure 
+                $ categoryOfVerb
+                $ map 
+                  (map stemWIrreg) 
+                  (normalizeConjugations cons)
+
+  hPutStrLn stderr ("[" <> show n <> "] " <> path)
+
+  let cs' = map (aux categories) cs
+    in pure $ if cs' == cs then (Indexed 1 categories) : cs
+              else cs'
+  where 
+    verb = takeWhile isLetter 
+           $ dropWhileWhole (elem '/') path
+    aux :: Embedded Category -> Indexed (Embedded Category) -> Indexed (Embedded Category)
+    aux a b@(Indexed count a')
+      | a == a'   = Indexed (count + 1) a'
+      | otherwise = b
+
+type PVT = [Group String (L3 Category)]
+
+processVerb :: PVT -> (Int, FilePath) -> IO PVT
+processVerb gs f@(i, path) = do
+  cons       <- extractConjugations path
+  categories <- pure 
+                $ categoryOfVerb
+                $ map 
+                  (map stemWIrreg) 
+                  (normalizeConjugations cons)
+  pure $ foldl aux gs (formalize categories)
+  <* hPutStrLn stderr ("[" <> show i <> "] " <> path) 
+
+  where
+    verb  = takeWhile isLetter 
+            $ dropWhileWhole (elem '/') path
+
+    aux :: [Group String (L3 Category)] -> L3 Category -> [Group String (L3 Category)]
+    aux gs c 
+      | c `elem` (map groupCategory gs) = 
+        map (joinGroup (c ==) verb) gs
+      | otherwise =
+        (Group [verb] c) : gs
+  
 removeNonVerbs :: [FilePath] -> IO ()
 removeNonVerbs fs = mapM_ aux fs
   where

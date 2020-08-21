@@ -1,11 +1,25 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Helpers where
 
 import Data.List
+import Control.Applicative (empty)
 import Control.Monad
 import System.IO
 import Debug.Trace
+import Data.Aeson
 
-type Arrow = (Int, Int)
+type Arrow      = (Int, Int)
+type Embedded a = [[[a]]]
+data Indexed a  = Indexed Int a
+  deriving (Eq)
+
+instance (Show a) => Show (Indexed a) where
+  show (Indexed c a) = "{\"count\":" <> show c <> ", \"item\":" <> show a <> "}\n\n"
+
+type L a = [a]
+type L2 a = [[a]]
+type L3 a = [[[a]]]
 
 (<&>) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
 (<&>) a b c = a c && b c
@@ -60,22 +74,13 @@ intersect' a b = aux [] a b
         isExhausted = length    a == 0
                       || length b == 0
 
--- type Point = (Int, Int) -- position, offset
-
--- intOfPoint :: Point -> Int
--- intOfPoint (p, o) = p + o
-
 lengthOfArrow :: Arrow -> Int
-lengthOfArrow (a, b) = abs(a - b)
-  -- where 
-  --   [a', b'] = map intOfPoint [a, b]
+lengthOfArrow (a, b) = abs $ a - b
 
 doLinesIntersect :: Arrow -> Arrow -> Bool
 doLinesIntersect a@(i, j) b@(k, l) =
-  signum (i - k) /= signum (j - l)
+     signum (i - k)  /= signum (j - l)
   && lengthOfArrow a /= lengthOfArrow b
-  -- where 
-  --   [i', j', k', l'] = map intOfPoint [i, j, k, l]
 
 reduceArrows :: [Arrow] -> [Arrow]
 reduceArrows as = aux [] as
@@ -94,8 +99,6 @@ findIntersections a as = filter (doLinesIntersect a) as
 
 isStraight :: Arrow -> Bool
 isStraight (a, b) = a == b
-  -- where 
-  --   [a', b'] = map intOfPoint [a, b]
 
 common :: String -> String -> String
 common a b = aux aa0
@@ -113,13 +116,15 @@ common a b = aux aa0
     aux ars 
       | any (uncurry doLinesIntersect) [(a, b) | a <- ars, b <- ars] = 
         aux $ filter (f ars) ars
-      | otherwise = map ((a !!) . fst) $ reduceArrows ars
+      | otherwise = 
+        map ((a !!) . fst) $ reduceArrows ars
     f ars a = all (>= len) intersectLengths
       where 
         intersectLengths = map lengthOfArrow intersects
         intersects = findIntersections a ars
         len = lengthOfArrow a
 
+-- data ArrowT a = ArrowT a Int Int
 
 unpackMaybeList :: Maybe [a] -> [a]
 unpackMaybeList Nothing  = []
@@ -155,5 +160,9 @@ dropWhileWhole f (x:xs)
 splitAtEl :: Ord a => a -> [a] -> [a]
 splitAtEl a as = fst $ break (== a) as
 
-subsequences' :: Ord a => [a] -> [[a]]
-subsequences' as = filterM (const [True, False]) as
+formalize :: L3 a -> L (L3 a)
+formalize as = concat [as : bs, cs]
+  where 
+    cs = map wrap $ concat $ map (map wrap) as
+    bs = map wrap as
+    wrap a = [a]

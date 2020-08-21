@@ -3,4 +3,7 @@
 **/*.html
 dist
 log*
-verbsList.txt
+verbsList*.txt
+out*
+data*json
+.vscode
