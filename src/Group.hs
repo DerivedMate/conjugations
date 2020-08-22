@@ -33,16 +33,16 @@ groupMembers :: Group a g -> [a]
 groupMembers  (Group as _) = as
 
 groupElem :: Eq a => a -> Group a g -> Bool
-groupElem a g = elem a (groupMembers g)
+groupElem a g = a `elem` groupMembers g
 
 joinGroup :: Eq a => (g -> Bool) -> a -> Group a g -> Group a g
 joinGroup test a (Group as g)
-  | (not . elem a) as && test g = Group (a:as) g
-  | otherwise                   = Group as g
+  | a `notElem` as && test g = Group (a:as) g
+  | otherwise                = Group as g
 
 mapGroup :: (g -> h) -> [Group a g] -> [Group a h]
 mapGroup f as = map aux as
   where aux (Group as g) = Group as (f g)
 
 concatGroups :: Group a g -> Group a g -> Group a g
-concatGroups (Group a0 g0) (Group a1 _) = Group (concat [a0, a1]) g0
+concatGroups (Group a0 g0) (Group a1 _) = Group (a0 ++ a1) g0

@@ -97,9 +97,6 @@ reduceArrows as = aux [] as
 findIntersections :: Arrow -> [Arrow] -> [Arrow]
 findIntersections a as = filter (doLinesIntersect a) as
 
-isStraight :: Arrow -> Bool
-isStraight (a, b) = a == b
-
 common :: String -> String -> String
 common a b = aux aa0
   where 
@@ -160,9 +157,11 @@ dropWhileWhole f (x:xs)
 splitAtEl :: Ord a => a -> [a] -> [a]
 splitAtEl a as = fst $ break (== a) as
 
+wrap :: a -> [a]
+wrap a = [a]
+
 formalize :: L3 a -> L (L3 a)
 formalize as = concat [as : bs, cs]
   where 
     cs = map wrap $ concat $ map (map wrap) as
     bs = map wrap as
-    wrap a = [a]
