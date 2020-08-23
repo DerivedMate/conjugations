@@ -21,6 +21,24 @@ type L a = [a]
 type L2 a = [[a]]
 type L3 a = [[[a]]]
 
+data OrReader a = OrReader Bool a
+readOr :: OrReader a -> Bool
+readOr (OrReader r _) = r
+
+deOr :: OrReader a -> a
+deOr (OrReader _ a) = a
+
+instance Functor OrReader where
+  fmap f (OrReader r a) = OrReader r (f a)
+
+instance Applicative OrReader where
+  pure a = OrReader False a
+  (<*>) (OrReader r f) (OrReader r' a) = OrReader (r || r') (f a)
+
+instance Monad OrReader where
+  (>>=) (OrReader r a) f = OrReader (r || r') b
+    where (OrReader r' b) = f a
+
 (<&>) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
 (<&>) a b c = a c && b c
 
@@ -160,8 +178,8 @@ splitAtEl a as = fst $ break (== a) as
 wrap :: a -> [a]
 wrap a = [a]
 
-formalize :: L3 a -> L (L3 a)
-formalize as = concat [as : bs, cs]
-  where 
-    cs = map wrap $ concat $ map (map wrap) as
-    bs = map wrap as
+verbalize :: FilePath -> String
+verbalize path = takeWhile (/= '.') $ dropWhileWhole (elem '/') path
+
+cmpList :: Eq a => [a] -> [a] -> [Bool]
+cmpList a b = zipWith (==) a b

@@ -9,11 +9,13 @@ import Helpers
 import Ling
 import Group
 import Pattern
+import Formal
 import System.IO
 import System.Directory
 import Text.HTML.Scalpel
 import Data.Char
 import Control.Exception
+import Debug.Trace
 import qualified Data.ByteString.Lazy.Char8 as B8
 
 downloadPage :: String -> String -> IO ()
@@ -159,38 +161,49 @@ processVerbs cs (n, path) = do
     in pure $ if cs' == cs then Indexed 1 categories : cs
               else cs'
   where 
-    verb = takeWhile isLetter 
-           $ dropWhileWhole (elem '/') path
+    verb = takeWhile (/= '.') $ dropWhileWhole (elem '/') path
     aux :: Embedded Category -> Indexed (Embedded Category) -> Indexed (Embedded Category)
     aux a b@(Indexed count a')
       | a == a'   = Indexed (count + 1) a'
       | otherwise = b
 
-
-type PVT = [Group String (L3 Category)]
-processVerb :: PVT -> (Int, FilePath) -> IO PVT
-processVerb gs f@(i, path) = do
+type PVT = Formal 
+            (Group String (L3 Category))
+            (Group String (L2 Category))
+            (Group String (L  Category))
+           
+processVerb :: Maybe PVT -> (Int, FilePath) -> IO (Maybe PVT)
+processVerb g f@(i, path) = do
   cons       <- extractConjugations path
   categories <- pure 
-                $ formalize
+                $ makeFormal
                 $ categoryOfVerb
                 $ map 
                   (map stemWIrreg) 
                   (normalizeConjugations cons)
 
   -- hPutStrLn stderr ("[" <> show i <> "] " <> path)
-  pure $ foldl aux gs categories
+  pure $ Just $ case g of 
+    Just g  -> aux categories g
+    Nothing -> formalMap mapF mapF mapF categories
 
   where
-    verb = takeWhile isLetter 
-           $ dropWhileWhole (elem '/') path
+    verb = verbalize path
+    mapF = map (Group [verb])
 
-    aux :: [Group String (L3 Category)] -> L3 Category -> [Group String (L3 Category)]
-    aux gs c
-      | c `elem` map groupCategory gs = 
-        map (joinGroup (c ==) verb) gs
-      | otherwise =
-        Group [verb] c : gs
+    h = map groupCategory
+    f gs cs
+      | matchedAny = zipWith fAux gs matches'
+      | otherwise  = mapF cs ++ gs
+      where 
+        matchedAny = or $ cmpList gs cs
+        csGroups = mapF cs
+        fAux g@(Group ms c) match
+          | match     = Group (verb:ms) c
+          | otherwise = g
+
+    aux :: FormalS Category -> PVT -> PVT
+    aux c g = formalZipWith f f f g c 
   
 removeNonVerbs :: [FilePath] -> IO ()
 removeNonVerbs fs = mapM_ aux fs

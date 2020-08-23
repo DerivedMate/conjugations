@@ -5,6 +5,7 @@ import Helpers
 import Ling
 import Group
 import Pattern
+import Formal
 import Control.Monad 
 import Data.List
 import Data.Aeson
@@ -16,6 +17,7 @@ import Data.Ord
 tierOfGroup :: Group a (L3 g) -> Int
 tierOfGroup g = sum $ map length $ groupCategory g
 
+{-
 lengthOfOutput :: FilePath -> FilePath -> IO ()
 lengthOfOutput path outPath = do
   out <- openFile path ReadMode
@@ -28,7 +30,7 @@ lengthOfOutput path outPath = do
     $ sortOn tierOfGroup
     $ unpackMaybeList (decode out :: Maybe [Group String (L3 Category)])
   where g a b = tierOfGroup a == tierOfGroup b
-
+-}
 cmpFiles a b = do
   fa <- openFile a ReadMode >>= BL.hGetContents
   fb <- openFile b ReadMode >>= BL.hGetContents
@@ -39,11 +41,13 @@ cmpFiles a b = do
     in pure $ va == vb
 
 main :: IO ()
-main = readLines "verbsList.txt" 
+main = 
+  readLines "verbsList.txt" 
+  >>= pure . take 100
   >>= pure . zip [0..]
-  >>= foldM processVerb []
-  >>= pure . sortOn (Down . length . groupMembers)
-  >>= BL.putStr . encodePretty
+  >>= foldM processVerb Nothing
+  >>= BL.putStr . encodePretty 
+  -- >>= print . fmap (map groupMembers . l2)
   -- >>= removeNonVerbs
   -- >>= pure . drop 500
   -- >>= mapM_ testVerb
