@@ -9,35 +9,28 @@ import System.IO
 import Debug.Trace
 import Data.Aeson
 
-type Arrow      = (Int, Int)
-type Embedded a = [[[a]]]
-data Indexed a  = Indexed Int a
-  deriving (Eq)
-
-instance (Show a) => Show (Indexed a) where
-  show (Indexed c a) = "{\"count\":" <> show c <> ", \"item\":" <> show a <> "}\n\n"
-
-type L a = [a]
-type L2 a = [[a]]
+type L  a =   [a]
+type L2 a =  [[a]]
 type L3 a = [[[a]]]
 
-data OrReader a = OrReader Bool a
-readOr :: OrReader a -> Bool
-readOr (OrReader r _) = r
+data OrWriter a = OrWriter Bool a
+readOr :: OrWriter a -> Bool
+readOr (OrWriter r _) = r
 
-deOr :: OrReader a -> a
-deOr (OrReader _ a) = a
+deOr :: OrWriter a -> a
+deOr (OrWriter _ a) = a
 
-instance Functor OrReader where
-  fmap f (OrReader r a) = OrReader r (f a)
+instance Functor OrWriter where
+  fmap f (OrWriter r a) = OrWriter r (f a)
 
-instance Applicative OrReader where
-  pure a = OrReader False a
-  (<*>) (OrReader r f) (OrReader r' a) = OrReader (r || r') (f a)
+instance Applicative OrWriter where
+  pure a = OrWriter False a
+  (<*>) (OrWriter r f) (OrWriter r' a) = 
+    OrWriter (r || r') (f a)
 
-instance Monad OrReader where
-  (>>=) (OrReader r a) f = OrReader (r || r') b
-    where (OrReader r' b) = f a
+instance Monad OrWriter where
+  (>>=) (OrWriter r a) f = OrWriter (r || r') b
+    where (OrWriter r' b) = f a
 
 (<&>) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
 (<&>) a b c = a c && b c
@@ -57,7 +50,7 @@ normalizePath dist
   | endWithDash = normalizePath $ init dist
   | otherwise   = dist
   where 
-    endWithDash = (last dist) == '/'
+    endWithDash = last dist == '/'
 
 {-
   Inserts the given item right after the given index.
@@ -89,55 +82,7 @@ intersect' a b = aux [] a b
       | otherwise   = aux acc (tail a) b
       where 
         el          = head a
-        isExhausted = length    a == 0
-                      || length b == 0
-
-lengthOfArrow :: Arrow -> Int
-lengthOfArrow (a, b) = abs $ a - b
-
-doLinesIntersect :: Arrow -> Arrow -> Bool
-doLinesIntersect a@(i, j) b@(k, l) =
-     signum (i - k)  /= signum (j - l)
-  && lengthOfArrow a /= lengthOfArrow b
-
-reduceArrows :: [Arrow] -> [Arrow]
-reduceArrows as = aux [] as
-  where
-    finder (i, j) (k, l) = i == k || j == l
-    aux past []     = reverse past
-    aux past (a:as)
-      | wasAlready = aux past as
-      | otherwise  = aux (a:past) as
-      where
-        wasAlready = boolOfMaybe $ find (finder a) past
-
--- Ignores an intersection if the arrows are of the same length
-findIntersections :: Arrow -> [Arrow] -> [Arrow]
-findIntersections a as = filter (doLinesIntersect a) as
-
-common :: String -> String -> String
-common a b = aux aa0
-  where 
-    aa0        = (ars0 aInd bInd)
-    aInd       = ind a
-    bInd       = ind b
-    ars0 as bs = [ (i, j) 
-                 | (a, i) <- as
-                 , (b, j) <- bs
-                 , a == b
-                 ]
-    ind a      = zip a [0..]
-    deInd a    = fst $ unzip a
-    aux ars 
-      | any (uncurry doLinesIntersect) [(a, b) | a <- ars, b <- ars] = 
-        aux $ filter (f ars) ars
-      | otherwise = 
-        map ((a !!) . fst) $ reduceArrows ars
-    f ars a = all (>= len) intersectLengths
-      where 
-        intersectLengths = map lengthOfArrow intersects
-        intersects = findIntersections a ars
-        len = lengthOfArrow a
+        isExhausted = null a || null b
 
 -- data ArrowT a = ArrowT a Int Int
 
@@ -150,8 +95,8 @@ partitionToLengths :: Ord a => [Int] -> [a] -> [[a]]
 partitionToLengths ls xs = aux [] xs ls
   where 
     aux acc [] _      = reverse acc
-    aux acc _ []      = reverse acc
-    aux acc xs (l:ls) = aux ((take l xs) : acc) (drop l xs) ls
+    aux acc _  []     = reverse acc
+    aux acc xs (l:ls) = aux (take l xs : acc) (drop l xs) ls
 
 groupByLengths :: Foldable t => [t a] -> [[t a]]
 groupByLengths xs = groupBy hasEqLen xs
@@ -163,15 +108,13 @@ readLines file =
   >>= hGetContents
   >>= pure . lines
 
--- longest :: (Ord a, Foldable t) => t a -> a
-longest xs = maximumBy aux xs
-  where aux a b = compare (length a) (length b)
 
 dropWhileWhole :: Ord a => ([a] -> Bool) -> [a] -> [a]
 dropWhileWhole f (x:xs) 
   | f xs      = dropWhileWhole f xs
   | otherwise = xs
 
+-- TODO: ¿replace with `takeWhile (not . (== a)) as`?
 splitAtEl :: Ord a => a -> [a] -> [a]
 splitAtEl a as = fst $ break (== a) as
 
@@ -179,7 +122,8 @@ wrap :: a -> [a]
 wrap a = [a]
 
 verbalize :: FilePath -> String
-verbalize path = takeWhile (/= '.') $ dropWhileWhole (elem '/') path
+verbalize path = takeWhile (/= '.') 
+                 $ dropWhileWhole (elem '/') path
 
 cmpList :: Eq a => [a] -> [a] -> [Bool]
 cmpList a b = zipWith (==) a b

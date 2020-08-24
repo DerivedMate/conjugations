@@ -1,6 +1,6 @@
 module Arrow where
 
--- import Helpers
+import Helpers
 import Pattern
 import Data.List
 import Debug.Trace
@@ -10,11 +10,6 @@ data Arrow a =
         , j  :: Int
         , el :: a
         } deriving (Eq, Show)
-
--- TO BE DELETED
-boolOfMaybe :: Ord a => Maybe a -> Bool
-boolOfMaybe (Just _) = True
-boolOfMaybe Nothing  = False
 
 arrowLength :: Arrow a -> Int
 arrowLength a = abs $ i a - j a

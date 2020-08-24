@@ -14,23 +14,6 @@ import Data.Aeson.Encode.Pretty
 import System.IO
 import Data.Ord
 
-tierOfGroup :: Group a (L3 g) -> Int
-tierOfGroup g = sum $ map length $ groupCategory g
-
-{-
-lengthOfOutput :: FilePath -> FilePath -> IO ()
-lengthOfOutput path outPath = do
-  out <- openFile path ReadMode
-         >>= BL.hGetContents
-  writeFile outPath
-    $ show
-    $ sortOn (Down . length)
-    $ map (map (length . groupMembers)) 
-    $ groupBy g 
-    $ sortOn tierOfGroup
-    $ unpackMaybeList (decode out :: Maybe [Group String (L3 Category)])
-  where g a b = tierOfGroup a == tierOfGroup b
--}
 cmpFiles a b = do
   fa <- openFile a ReadMode >>= BL.hGetContents
   fb <- openFile b ReadMode >>= BL.hGetContents
@@ -43,24 +26,6 @@ cmpFiles a b = do
 main :: IO ()
 main = 
   readLines "verbsList.txt" 
-  >>= pure . take 1024
   >>= pure . zip [0..]
   >>= foldM processVerb Nothing
   >>= BL.putStr . encodePretty 
-  -- >>= print . fmap (map groupMembers . l2)
-  -- >>= removeNonVerbs
-  -- >>= pure . drop 500
-  -- >>= mapM_ testVerb
-  -- >>= pure . zip [0..]
-  -- >>= foldM processVerbs []
-  -- >>= pure . sortOn (\(Indexed c _) -> c)
-  -- >>= print
-  -- >> putStrLn "_\tfinish"
-  {-(
-    \f -> extractConjugations f 
-          >>= print . map (map stemWIrreg) 
-  )-}
-
-       -- extractConjugationLinks "spanish"
-       -- >>= downloadVerbs "verbs/spanish2" 
-       -- >> print "done"
