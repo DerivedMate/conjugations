@@ -174,8 +174,8 @@ type PVT = Formal
             (Group String (L2 Category))
             (Group String (L  Category))
            
-processVerb :: (Int, FilePath) -> IO PVT
-processVerb (i, path) = do
+processVerb :: Maybe PVT -> (Int, FilePath) -> IO (Maybe PVT)
+processVerb f0 (i, path) = do
   cons       <- extractConjugations path
   categories <- pure 
                 $ makeFormal
@@ -184,8 +184,11 @@ processVerb (i, path) = do
                   (map stemWIrreg) 
                   (normalizeConjugations cons)
  
-  pure 
-    $ formalMap mapF mapF mapF categories
+  let f1 = formalMap mapF mapF mapF categories
+    in (pure . Just) $ 
+      case f0 of
+        Just f0 -> mergeFormals f0 f1
+        Nothing -> f1
 
   where
     verb = verbalize path
