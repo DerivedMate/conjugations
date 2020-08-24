@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 
@@ -68,7 +69,7 @@ formalZipWith :: (L a2 -> L b2 -> L c2)
               -> Formal a2 a1 a0
               -> Formal b2 b1 b0
               -> Formal c2 c1 c0
-formalZipWith f g h a b = Formal
+formalZipWith f g h !a !b = Formal
   (f (l2 a) (l2 b))
   (g (l1 a) (l1 b))
   (h (l0 a) (l0 b))

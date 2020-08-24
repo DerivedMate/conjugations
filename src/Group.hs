@@ -47,3 +47,6 @@ mapGroup f as = map aux as
 concatGroups :: Group a g -> Group a g -> Group a g
 concatGroups (Group a0 g0) (Group a1 _) = Group (a0 ++ a1) g0
 
+cmpGroupsGroups :: (Eq g, Eq g) => Group a g -> Group a g -> Bool
+cmpGroupsGroups (Group _ a) (Group _ b) = a == b
+

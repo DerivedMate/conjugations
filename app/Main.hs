@@ -43,9 +43,9 @@ cmpFiles a b = do
 main :: IO ()
 main = 
   readLines "verbsList.txt" 
-  >>= pure . take 100
   >>= pure . zip [0..]
-  >>= foldM processVerb Nothing
+  >>= mapM processVerb
+  >>= pure . foldl1 mergeFormals
   >>= BL.putStr . encodePretty 
   -- >>= print . fmap (map groupMembers . l2)
   -- >>= removeNonVerbs

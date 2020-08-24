@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Scraper where
@@ -16,6 +17,7 @@ import Text.HTML.Scalpel
 import Data.Char
 import Control.Exception
 import Debug.Trace
+import System.Mem
 import qualified Data.ByteString.Lazy.Char8 as B8
 
 downloadPage :: String -> String -> IO ()
@@ -167,13 +169,13 @@ processVerbs cs (n, path) = do
       | a == a'   = Indexed (count + 1) a'
       | otherwise = b
 
-type PVT = Formal 
+type PVT = Formal
             (Group String (L3 Category))
             (Group String (L2 Category))
             (Group String (L  Category))
            
-processVerb :: Maybe PVT -> (Int, FilePath) -> IO (Maybe PVT)
-processVerb g f@(i, path) = do
+processVerb :: (Int, FilePath) -> IO PVT
+processVerb (i, path) = do
   cons       <- extractConjugations path
   categories <- pure 
                 $ makeFormal
@@ -181,30 +183,30 @@ processVerb g f@(i, path) = do
                 $ map 
                   (map stemWIrreg) 
                   (normalizeConjugations cons)
-
-  -- hPutStrLn stderr ("[" <> show i <> "] " <> path)
-  pure $ Just $ case g of 
-    Just g  -> aux categories g
-    Nothing -> formalMap mapF mapF mapF categories
+ 
+  pure 
+    $ formalMap mapF mapF mapF categories
 
   where
     verb = verbalize path
     mapF = map (Group [verb])
-
-    h = map groupCategory
-    f gs cs
-      | matchedAny = zipWith fAux gs matches'
-      | otherwise  = mapF cs ++ gs
-      where 
-        matchedAny = or $ cmpList gs cs
-        csGroups = mapF cs
-        fAux g@(Group ms c) match
-          | match     = Group (verb:ms) c
-          | otherwise = g
-
-    aux :: FormalS Category -> PVT -> PVT
-    aux c g = formalZipWith f f f g c 
   
+mergeFormals :: PVT -> PVT -> PVT
+mergeFormals (Formal !a2 !a1 !a0) (Formal !b2 !b1 !b0) = 
+  Formal (a2 `aux` b2) (a1 `aux` b1) (a0 `aux` b0)
+  where 
+    aux gsa gsb = foldr merge gsa gsb
+    -- merge :: (Eq g, Eq a) => Group a g -> [Group a g] -> [Group a g]
+    merge ga gsb
+      | gsb' == gsb = ga : gsb'
+      | otherwise   = gsb'
+      where gsb' = map (mergeGroups ga) gsb
+       
+    mergeGroups (Group msa ga) (Group msb gb)
+      | groupsMatch = Group (msa ++ msb) ga
+      | otherwise   = Group msb gb
+      where groupsMatch = ga == gb
+
 removeNonVerbs :: [FilePath] -> IO ()
 removeNonVerbs fs = mapM_ aux fs
   where
