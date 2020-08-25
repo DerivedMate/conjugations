@@ -12,23 +12,6 @@ import Helpers
 import qualified Arrow as A
 import Pattern
 
-instance ToJSON Category where
-  toJSON (Category ts suffix) = object 
-    [ "transformations" .= ts
-    , "suffix"          .= suffix
-    ]
-  
-  toEncoding (Category ts suffix) = pairs  
-    $  "transformations" .= ts
-    <> "suffix"          .= suffix
-    
-instance FromJSON Category where
-  parseJSON (Object v) = Category <$>
-                        v .: "transformations" <*>
-                        v .: "suffix"
-
-  parseJSON _          = empty
-
 data ConjugationError = ConjugationError [[Conjugation]]
   deriving (Show, Typeable)
 

@@ -1,5 +1,11 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+
 module Pattern where
 
+import Control.Monad
+import Control.Applicative
+import Data.Aeson
   
 type Conjugation = [String]
 type Suffixes    = [String]
@@ -19,3 +25,20 @@ type Verb        = (Infinitive, [[[Pattern]]]) -- ¿?
 type Transform   = String
 data Category    = Category [Transform] String
   deriving (Eq, Show)
+
+instance ToJSON Category where
+  toJSON (Category ts suffix) = object 
+    [ "transformations" .= ts
+    , "suffix"          .= suffix
+    ]
+  
+  toEncoding (Category ts suffix) = pairs  
+    $  "transformations" .= ts
+    <> "suffix"          .= suffix
+    
+instance FromJSON Category where
+  parseJSON (Object v) = Category <$>
+                        v .: "transformations" <*>
+                        v .: "suffix"
+
+  parseJSON _          = empty

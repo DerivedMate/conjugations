@@ -26,6 +26,6 @@ cmpFiles a b = do
 main :: IO ()
 main = 
   readLines "verbsList.txt" 
-  >>= pure . zip [0..]
-  >>= foldM processVerb Nothing
+  >>= pure . zip [0..] 
+  >>= foldM processVerb Nothing 
   >>= BL.putStr . encodePretty 

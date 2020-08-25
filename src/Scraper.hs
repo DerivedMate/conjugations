@@ -21,9 +21,9 @@ import System.Mem
 import qualified Data.ByteString.Lazy.Char8 as B8
 
 type PVT = Formal
-            (Group String (L3 Category))
-            (Group String (L2 Category))
-            (Group String (L  Category))
+            (Idd (Group String (L3 Category)))
+            (Idd (Group String (L2 Category)))
+            (Idd (Group String (L  Category)))
 
 downloadPage :: String -> String -> IO ()
 downloadPage url dist =
@@ -167,30 +167,30 @@ processVerb f0 (i, path) = do
                    (normalizeConjugations cons)
     verb       = verbalize path
     mapF       = map (Group [verb])
-    f1         = formalMap mapF mapF mapF categories
+    f1         = formalIdentify $ formalMap mapF mapF mapF categories
     in pure $ Just $ 
       case f0 of
         Just f0 -> mergeFormals f0 f1
         Nothing -> f1
     
 mergeFormals :: PVT -> PVT -> PVT
-mergeFormals (Formal !a2 !a1 !a0) (Formal !b2 !b1 !b0) = 
+mergeFormals (Formal a2 a1 a0) (Formal b2 b1 b0) = 
   Formal (a2 `aux` b2) (a1 `aux` b1) (a0 `aux` b0)
   where 
-    aux :: (Eq a, Eq g) => [Group a g] -> [Group a g] -> [Group a g]
-    aux gsa gsb = foldr merge gsa gsb
+    aux :: (Eq a, Eq g) => [Idd (Group a g)] -> [Idd (Group a g)] -> [Idd (Group a g)]
+    aux gsa gsb = foldl' merge gsa gsb
 
-    merge :: (Eq a, Eq g) => Group a g -> [Group a g] -> [Group a g]
-    merge ga gsb
+    merge :: (Eq a, Eq g) => [Idd (Group a g)] -> Idd (Group a g) -> [Idd (Group a g)]
+    merge gsb ga
       | gsb' == gsb = ga : gsb'
       | otherwise   = gsb'
       where gsb'    = map (mergeGroups ga) gsb
     
-    mergeGroups :: Eq g => Group a g -> Group a g -> Group a g
-    mergeGroups (Group msa ga) (Group msb gb)
-      | groupsMatch     = Group (msa ++ msb) ga
-      | otherwise       = Group msb gb
-      where groupsMatch = ga == gb
+    mergeGroups :: (Eq a, Eq g) => Idd (Group a g) -> Idd (Group a g) -> Idd (Group a g)
+    mergeGroups (Idd ida ga) (Idd idb gb)
+      | groupsMatch     = Idd ida (ga <> gb)
+      | otherwise       = Idd idb gb
+      where groupsMatch = ida == idb && ga `cmpGroups` gb
 
 removeNonVerbs :: [FilePath] -> IO ()
 removeNonVerbs fs = mapM_ aux fs
