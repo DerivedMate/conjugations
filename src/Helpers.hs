@@ -127,3 +127,9 @@ verbalize path = takeWhile (/= '.')
 
 cmpList :: Eq a => [a] -> [a] -> [Bool]
 cmpList a b = zipWith (==) a b
+
+foldM' :: (Monad m) => (a -> b -> m a) -> a -> [b] -> m a
+foldM' _ z [] = return z
+foldM' f z (x:xs) = do
+  z' <- f z x
+  z' `seq` foldM' f z' xs

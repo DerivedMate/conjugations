@@ -7,3 +7,5 @@ verbsList*.txt
 out*
 data*json
 .vscode
+
+dist*

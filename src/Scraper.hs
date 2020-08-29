@@ -1,23 +1,28 @@
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
+
 
 module Scraper where
 
 import Network.HTTP.Conduit
 import Control.Monad
 import Data.List
+import Data.Functor (($>))
 import Helpers
 import Ling
 import Group
 import Pattern
 import Formal
-import System.IO
+import System.IO 
 import System.Directory
 import Text.HTML.Scalpel
 import Data.Char
 import Control.Exception
 import Debug.Trace
 import System.Mem
+import System.IO.Unsafe
+import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as B8
 
 type PVT = Formal
@@ -90,6 +95,15 @@ downloadVerbs dist_ urls =
 
 extractConjugations :: FilePath -> IO [[[String]]]
 extractConjugations file = 
+  
+  -- bracket
+  -- (extractRes file)
+  -- freeResources
+  -- (processAux . snd)
+
+  -- extractRes file
+  -- >>= processAux . snd
+  
   openFile file ReadMode
   >>= hGetContents
   >>= pure 
@@ -104,7 +118,27 @@ extractConjugations file =
         , 2,2,2,2,2   -- 5x2
         ] 
   >>= pure . map transpose
+       
   where 
+    {-freeResources (fh, !cnt) = seq cnt $ hClose $ fh
+    extractRes !file = do
+      fh  <- openFile file ReadMode 
+      cnt <- hGetContents fh
+      pure (fh, cnt)
+
+    processAux cnt = 
+      pure
+      $ map transpose
+      $ groupByLengths
+      $ partitionToLengths 
+        [ 3           -- 1x3
+        , 5,5,5,5,5,5 -- 6x5
+        , 4,4,4,4,4,4 -- 6x4
+        , 2,2,2,2,2   -- 5x2
+        ]
+      $ unpackMaybeList
+      $! split cnt
+    -}
     isStringLower str = all (isSpace <||> isLower) str
     split html        = do
       v  <- inf html
@@ -112,7 +146,7 @@ extractConjugations file =
       pure (v:vs) 
     aux html          = scrapeStringLike html scraper
     inf html          = scrapeStringLike html infinitiveScraper
-    condition w       = (isStringLower w) && (notElem w toExclude)
+    condition w       = isStringLower w && notElem w toExclude
     toExclude         = ["yo", "tú", "nosotros", "vosotros", ""]
     predicates        = map hasClass ["_1btShz4h", "_3HlR1KX5", "P-yt87tk","_1b8PdQhU"]
     infinitiveScraper :: Monad m0 => ScraperT String m0 String
@@ -155,26 +189,25 @@ testVerb file =
               ws
         ws  = normalizeConjugations ws_
            
-processVerb :: Maybe PVT -> (Int, FilePath) -> IO (Maybe PVT)
-processVerb f0 (i, path) = do
+
+processVerb :: FilePath -> IO PVT
+processVerb path = do
   cons       <- extractConjugations path
- 
-  let 
-    categories = makeFormal
+  categories <- pure 
+                 $ makeFormal
                  $ categoryOfVerb
                  $ map 
                    (map stemWIrreg) 
                    (normalizeConjugations cons)
+  
+  let 
     verb       = verbalize path
     mapF       = map (Group [verb])
     f1         = formalIdentify $ formalMap mapF mapF mapF categories
-    in pure $ Just $ 
-      case f0 of
-        Just f0 -> mergeFormals f0 f1
-        Nothing -> f1
-    
+    in pure  f1
+
 mergeFormals :: PVT -> PVT -> PVT
-mergeFormals (Formal a2 a1 a0) (Formal b2 b1 b0) = 
+mergeFormals (Formal !a2 !a1 !a0) (Formal b2 b1 b0) = 
   Formal (a2 `aux` b2) (a1 `aux` b1) (a0 `aux` b0)
   where 
     aux :: (Eq a, Eq g) => [Idd (Group a g)] -> [Idd (Group a g)] -> [Idd (Group a g)]

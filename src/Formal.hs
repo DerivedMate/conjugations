@@ -23,6 +23,11 @@ instance ToJSON a => ToJSON (Idd a) where
     $  "id"   .= id
     <> "data" .= a
 
+instance FromJSON a => FromJSON (Idd a) where
+  parseJSON (Object v) = Idd 
+    <$> v .: "id" 
+    <*> v .: "data"
+
 identify :: [a] -> [Idd a]
 identify as = zipWith aux [0..] as
   where aux id a = Idd id a
@@ -70,9 +75,11 @@ formalCompare a b =
     (l0 a `cmpList` l0 b)
 
 makeFormal :: [[[a]]] -> Formal [[[a]]] [[a]] [a]
-makeFormal a = Formal [a] b (concat b)
+makeFormal a = seq a' $ Formal a' b' (concat b)
   where 
-    b = map wrap $ concat a
+    a' = seq a [a]
+    b' = concat a'
+    b  = map wrap $ concat a
   
 formalMap :: (L a2 -> L b2)
           -> (L a1 -> L b1)
