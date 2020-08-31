@@ -14,6 +14,25 @@ import Data.Aeson.Encode.Pretty
 import System.IO
 import Data.Ord
 
+doSorting :: PVT -> PVT
+doSorting (Formal l2 l1 l0) = Formal (sortFormal l2) (sortFormal l1) (sortFormal l0)
+  where 
+    nMembers :: Idd (Group String a) -> Int
+    nMembers (Idd _ (Group ms _)) = length ms
+
+    sortFormal :: [Idd (Group String a)] -> [Idd (Group String a)]
+    sortFormal as = sortOn (Down . nMembers) as
+
+sortData :: FilePath -> IO ()
+sortData path = do
+  fh      <- openFile path ReadMode
+  content <- BL.hGetContents fh
+
+  BL.putStr $ encodePretty $ doSorting <$> decode content
+
+    
+
+cmpFiles :: FilePath -> FilePath -> IO Bool
 cmpFiles a b = do
   fa <- openFile a ReadMode >>= BL.hGetContents
   fb <- openFile b ReadMode >>= BL.hGetContents
@@ -26,6 +45,7 @@ cmpFiles a b = do
 main :: IO ()
 main = 
   readLines "verbsList.txt" 
-  >>= pure . zip [0..]
-  >>= foldM processVerb Nothing
+  >>= mapM (processVerb extractConjugations)
+  >>= pure . foldl1 mergeFormals
+  >>= pure . doSorting
   >>= BL.putStr . encodePretty 

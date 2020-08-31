@@ -8,7 +8,14 @@ import Data.Aeson
 import Data.List
 
 data Group a g = Group [a] g
-  deriving (Eq, Show)
+  deriving (Show)
+
+instance Semigroup (Group a g) where
+  (<>) (Group as g) (Group bs _) = Group (as <> bs) g
+
+instance (Eq a, Eq g) => Eq (Group a g) where
+  (==) (Group as ga) (Group bs gb) = as == bs && ga == gb
+
 instance (ToJSON a, ToJSON g) => ToJSON (Group a g) where
   toJSON (Group as g) = object 
     [ "members" .= as
@@ -44,9 +51,6 @@ mapGroup :: (g -> h) -> [Group a g] -> [Group a h]
 mapGroup f as = map aux as
   where aux (Group as g) = Group as (f g)
 
-concatGroups :: Group a g -> Group a g -> Group a g
-concatGroups (Group a0 g0) (Group a1 _) = Group (a0 ++ a1) g0
-
-cmpGroupsGroups :: (Eq g, Eq g) => Group a g -> Group a g -> Bool
-cmpGroupsGroups (Group _ a) (Group _ b) = a == b
+cmpGroups :: (Eq a, Eq g) => Group a g -> Group a g -> Bool
+cmpGroups (Group _ a) (Group _ b) = a == b
 

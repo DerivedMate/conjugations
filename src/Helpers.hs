@@ -6,13 +6,13 @@ import Data.List
 import Control.Applicative (empty)
 import Control.Monad
 import System.IO
-import Debug.Trace
 import Data.Aeson
 
 type L  a =   [a]
 type L2 a =  [[a]]
 type L3 a = [[[a]]]
 
+-- Technically useless, but it's my first monad, so...
 data OrWriter a = OrWriter Bool a
 readOr :: OrWriter a -> Bool
 readOr (OrWriter r _) = r
@@ -47,10 +47,10 @@ boolOfMaybe Nothing  = False
 
 normalizePath :: String -> String
 normalizePath dist
-  | endWithDash = normalizePath $ init dist
-  | otherwise   = dist
+  | endsWithDash = normalizePath $ init dist
+  | otherwise    = dist
   where 
-    endWithDash = last dist == '/'
+    endsWithDash = last dist == '/'
 
 {-
   Inserts the given item right after the given index.
@@ -84,8 +84,6 @@ intersect' a b = aux [] a b
         el          = head a
         isExhausted = null a || null b
 
--- data ArrowT a = ArrowT a Int Int
-
 unpackMaybeList :: Maybe [a] -> [a]
 unpackMaybeList Nothing  = []
 unpackMaybeList (Just a) = a
@@ -114,9 +112,8 @@ dropWhileWhole f (x:xs)
   | f xs      = dropWhileWhole f xs
   | otherwise = xs
 
--- TODO: ¿replace with `takeWhile (not . (== a)) as`?
 splitAtEl :: Ord a => a -> [a] -> [a]
-splitAtEl a as = fst $ break (== a) as
+splitAtEl a as = takeWhile (not . (== a)) as
 
 wrap :: a -> [a]
 wrap a = [a]
@@ -127,3 +124,9 @@ verbalize path = takeWhile (/= '.')
 
 cmpList :: Eq a => [a] -> [a] -> [Bool]
 cmpList a b = zipWith (==) a b
+
+foldM' :: (Monad m) => (a -> b -> m a) -> a -> [b] -> m a
+foldM' _ z [] = return z
+foldM' f z (x:xs) = do
+  z' <- f z x
+  z' `seq` foldM' f z' xs

@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+
 module Scraper where
 
 import Network.HTTP.Conduit
@@ -11,19 +12,17 @@ import Ling
 import Group
 import Pattern
 import Formal
-import System.IO
+import System.IO 
 import System.Directory
 import Text.HTML.Scalpel
 import Data.Char
-import Control.Exception
 import Debug.Trace
-import System.Mem
 import qualified Data.ByteString.Lazy.Char8 as B8
 
 type PVT = Formal
-            (Group String (L3 Category))
-            (Group String (L2 Category))
-            (Group String (L  Category))
+            (Idd (Group String (L3 Category)))
+            (Idd (Group String (L2 Category)))
+            (Idd (Group String (L  Category)))
 
 downloadPage :: String -> String -> IO ()
 downloadPage url dist =
@@ -104,6 +103,7 @@ extractConjugations file =
         , 2,2,2,2,2   -- 5x2
         ] 
   >>= pure . map transpose
+       
   where 
     isStringLower str = all (isSpace <||> isLower) str
     split html        = do
@@ -112,7 +112,7 @@ extractConjugations file =
       pure (v:vs) 
     aux html          = scrapeStringLike html scraper
     inf html          = scrapeStringLike html infinitiveScraper
-    condition w       = (isStringLower w) && (notElem w toExclude)
+    condition w       = isStringLower w && notElem w toExclude
     toExclude         = ["yo", "tú", "nosotros", "vosotros", ""]
     predicates        = map hasClass ["_1btShz4h", "_3HlR1KX5", "P-yt87tk","_1b8PdQhU"]
     infinitiveScraper :: Monad m0 => ScraperT String m0 String
@@ -129,7 +129,7 @@ inspectVerb file =
   >>= print . aux
   where
     aux ws_ = map 
-              (map ( map assemblePattern . stemWIrreg ))
+              (map stemWIrreg)
               (normalizeConjugations ws_)
 
 testVerb :: String -> IO ()
@@ -145,7 +145,7 @@ testVerb file =
     printer r 
       | r         = verb <> "\t" <> "Success"
       | otherwise = verb <> "\t" <> "!!FAIL!!"
-    
+
     verb          = takeWhile isLetter 
                     $ dropWhileWhole (elem '/') file
     g ws_         = ws' == ws
@@ -155,42 +155,44 @@ testVerb file =
               ws
         ws  = normalizeConjugations ws_
            
-processVerb :: Maybe PVT -> (Int, FilePath) -> IO (Maybe PVT)
-processVerb f0 (i, path) = do
-  cons       <- extractConjugations path
- 
-  let 
-    categories = makeFormal
+
+processVerb :: (FilePath -> IO [[[String]]]) -> FilePath -> IO PVT
+processVerb conjugationExtractor path = do
+  cons       <- conjugationExtractor path
+  categories <- pure 
+                 $ makeFormal
                  $ categoryOfVerb
                  $ map 
                    (map stemWIrreg) 
                    (normalizeConjugations cons)
+  
+  let 
     verb       = verbalize path
     mapF       = map (Group [verb])
-    f1         = formalMap mapF mapF mapF categories
-    in pure $ Just $ 
-      case f0 of
-        Just f0 -> mergeFormals f0 f1
-        Nothing -> f1
-    
+    f1         = formalIdentify 
+                  $ formalMap 
+                    mapF mapF mapF 
+                    categories
+    in pure f1
+
 mergeFormals :: PVT -> PVT -> PVT
-mergeFormals (Formal !a2 !a1 !a0) (Formal !b2 !b1 !b0) = 
+mergeFormals (Formal !a2 !a1 !a0) (Formal b2 b1 b0) = 
   Formal (a2 `aux` b2) (a1 `aux` b1) (a0 `aux` b0)
   where 
-    aux :: (Eq a, Eq g) => [Group a g] -> [Group a g] -> [Group a g]
-    aux gsa gsb = foldr merge gsa gsb
+    aux :: (Eq a, Eq g) => [Idd (Group a g)] -> [Idd (Group a g)] -> [Idd (Group a g)]
+    aux gsa gsb = foldl' merge gsa gsb
 
-    merge :: (Eq a, Eq g) => Group a g -> [Group a g] -> [Group a g]
-    merge ga gsb
+    merge :: (Eq a, Eq g) => [Idd (Group a g)] -> Idd (Group a g) -> [Idd (Group a g)]
+    merge gsb ga
       | gsb' == gsb = ga : gsb'
       | otherwise   = gsb'
       where gsb'    = map (mergeGroups ga) gsb
     
-    mergeGroups :: Eq g => Group a g -> Group a g -> Group a g
-    mergeGroups (Group msa ga) (Group msb gb)
-      | groupsMatch     = Group (msa ++ msb) ga
-      | otherwise       = Group msb gb
-      where groupsMatch = ga == gb
+    mergeGroups :: (Eq a, Eq g) => Idd (Group a g) -> Idd (Group a g) -> Idd (Group a g)
+    mergeGroups (Idd ida ga) (Idd idb gb)
+      | groupsMatch     = Idd ida (ga <> gb)
+      | otherwise       = Idd idb gb
+      where groupsMatch = ida == idb && ga `cmpGroups` gb
 
 removeNonVerbs :: [FilePath] -> IO ()
 removeNonVerbs fs = mapM_ aux fs

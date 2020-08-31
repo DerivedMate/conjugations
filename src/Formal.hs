@@ -7,6 +7,34 @@ module Formal where
 import Helpers
 import Data.Aeson
 
+data Idd a = Idd Int a
+  deriving (Show)
+
+instance Semigroup a => Semigroup (Idd a) where
+  (<>) (Idd id a) (Idd _ b) = Idd id (a <> b)
+
+instance ToJSON a => ToJSON (Idd a) where  
+  toJSON (Idd id a) = object
+    [ "id"   .= id
+    , "data" .= a
+    ]
+
+  toEncoding (Idd id a) = pairs 
+    $  "id"   .= id
+    <> "data" .= a
+
+instance FromJSON a => FromJSON (Idd a) where
+  parseJSON (Object v) = Idd 
+    <$> v .: "id" 
+    <*> v .: "data"
+
+identify :: [a] -> [Idd a]
+identify as = zipWith aux [0..] as
+  where aux id a = Idd id a
+
+instance Eq a => Eq (Idd a) where
+  (==) (Idd ida a) (Idd idb b) = ida == idb && a == b
+
 data Formal l2T l1T l0T = 
   Formal { l2 :: [l2T] -- Ful conjugations
          , l1 :: [l1T] -- Moods
@@ -47,9 +75,11 @@ formalCompare a b =
     (l0 a `cmpList` l0 b)
 
 makeFormal :: [[[a]]] -> Formal [[[a]]] [[a]] [a]
-makeFormal a = Formal [a] b (concat b)
+makeFormal a = seq a' $ Formal a' b' (concat b)
   where 
-    b = map wrap $ concat a
+    a' = seq a [a]
+    b' = concat a'
+    b  = map wrap $ concat a
   
 formalMap :: (L a2 -> L b2)
           -> (L a1 -> L b1)
@@ -85,3 +115,9 @@ formalZipWith3 f g h a b c = Formal
   (f (l2 a) (l2 b) (l2 c))
   (g (l1 a) (l1 b) (l1 c))
   (h (l0 a) (l0 b) (l0 c))
+
+formalIdentify :: Formal a b c -> Formal (Idd a) (Idd b) (Idd c)
+formalIdentify (Formal a b c) = 
+  Formal (identify a)
+         (identify b)
+         (identify c)

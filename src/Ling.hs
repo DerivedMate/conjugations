@@ -12,23 +12,6 @@ import Helpers
 import qualified Arrow as A
 import Pattern
 
-instance ToJSON Category where
-  toJSON (Category ts suffix) = object 
-    [ "transformations" .= ts
-    , "suffix"          .= suffix
-    ]
-  
-  toEncoding (Category ts suffix) = pairs  
-    $  "transformations" .= ts
-    <> "suffix"          .= suffix
-    
-instance FromJSON Category where
-  parseJSON (Object v) = Category <$>
-                        v .: "transformations" <*>
-                        v .: "suffix"
-
-  parseJSON _          = empty
-
 data ConjugationError = ConjugationError [[Conjugation]]
   deriving (Show, Typeable)
 
@@ -44,10 +27,11 @@ assemblePattern (Pattern base irs suffix) =
     aux w (i, l) = insertAt l i w
 
 stemWIrreg :: Conjugation -> [Pattern]
-stemWIrreg ws = map (`A.common` baseStem) ws
+stemWIrreg  ws = map (`A.common` baseStem) ws
   where
-    baseStem                = foldl1 f ws
-    f a b                   = patternCommon $ A.common a b
+    baseStem   = foldl1 merger ws
+    merger a b = patternCommon $ A.common a b
+    -- f a b    =  a b
 
 -- checks whether a given word is a Spanish verb (excluding reflexive ones)
 isVerbSpanish :: String -> Bool
