@@ -1,36 +1,40 @@
-module Data exposing (Data, decodeData)
+module Data exposing (..)
 
-import Json.Decode as D exposing (Decoder)
+import Array exposing (Array)
+import Helpers exposing (arrayGroupBy, groupBy)
 import Http
+import Json.Decode as D exposing (Decoder)
+
 
 
 -- import Json.Encode as E -- Skip encoding, as the data is going to be read-only
 
 
 type alias L3 a =
-    List (L2 a)
+    Array (L2 a)
 
 
 l3Decode : D.Decoder a -> D.Decoder (L3 a)
 l3Decode aDecoder =
-    D.list (D.list (D.list aDecoder))
+    D.array (D.array (D.array aDecoder))
+
 
 type alias L2 a =
-    List (L a)
+    Array (L a)
 
 
 l2Decode : D.Decoder a -> D.Decoder (L2 a)
 l2Decode aDecoder =
-    D.list (D.list aDecoder)
+    D.array (D.array aDecoder)
 
 
 type alias L a =
-    List a
+    Array a
 
 
 lDecode : D.Decoder a -> D.Decoder (L a)
 lDecode aDecoder =
-    D.list aDecoder
+    D.array aDecoder
 
 
 type Idd a
@@ -42,6 +46,11 @@ iddDecode aDecoder =
     D.map2 Idd
         (D.field "id" D.int)
         (D.field "data" aDecoder)
+
+
+iddId : Idd a -> Int
+iddId (Idd i _) =
+    i
 
 
 type Group a g
@@ -67,15 +76,39 @@ categoryDecode =
 
 
 type alias Data =
-    { l2 : List (Idd (Group String (L3 Category)))
-    , l1 : List (Idd (Group String (L2 Category)))
-    , l0 : List (Idd (Group String (L Category)))
+    { l2 : Array (List (Idd (Group String (L3 Category))))
+    , l1 : Array (List (Idd (Group String (L2 Category))))
+    , l0 : Array (List (Idd (Group String (L Category))))
     }
 
 
 decodeData : D.Decoder Data
 decodeData =
     D.map3 Data
-        (D.field "l2" (D.list (iddDecode (groupDecode (l3Decode categoryDecode)))))
-        (D.field "l1" (D.list (iddDecode (groupDecode (l2Decode categoryDecode)))))
-        (D.field "l1" (D.list (iddDecode (groupDecode (lDecode categoryDecode)))))
+        (D.field "l2" <|
+            D.map
+                (Array.fromList << groupBy iddId)
+            <|
+                D.list <|
+                    iddDecode <|
+                        groupDecode <|
+                            l3Decode categoryDecode
+        )
+        (D.field "l1" <|
+            D.map
+                (Array.fromList << groupBy iddId)
+            <|
+                D.list <|
+                    iddDecode <|
+                        groupDecode <|
+                            l2Decode categoryDecode
+        )
+        (D.field "l0" <|
+            D.map
+                (Array.fromList << groupBy iddId)
+            <|
+                D.list <|
+                    iddDecode <|
+                        groupDecode <|
+                            lDecode categoryDecode
+        )
