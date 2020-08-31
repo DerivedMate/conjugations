@@ -1,30 +1,32 @@
 module View.Home exposing (view)
 
-import Html exposing (div, text)
-import View
-import Store exposing (Msg(..), Model)
 import Browser exposing (Document)
+import Browser.Navigation exposing (pushUrl)
+import Html exposing (button, div, text)
+import Html.Events exposing (onClick)
+import Store exposing (Model, Msg(..))
+import View exposing (ViewT, makeUrl)
 
 
 match : Model -> Bool
 match model =
-    case ( model.l, model.i ) of
-        ( Nothing, Nothing ) ->
-            True
+    model.url.fragment == Nothing
 
-        _ ->
-            False
 
 render : Model -> Document Msg
-render _ =
+render { url } =
     { title = "home"
     , body =
-        [ div [] [ text "home" ]
+        [ div []
+            [ button [ onClick (Store.ChangeUrl <| makeUrl url [ "l0" ]) ] [ text "l0" ]
+            , button [ onClick (Store.ChangeUrl <| makeUrl url [ "l1" ]) ] [ text "l1" ]
+            , button [ onClick (Store.ChangeUrl <| makeUrl url [ "l2" ]) ] [ text "l2" ]
+            ]
         ]
     }
 
 
-view : View.ViewT Model Msg
+view : ViewT Model Msg
 view =
     { match = match
     , render = render

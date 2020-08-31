@@ -9,10 +9,12 @@ import Json.Decode exposing (Error)
 import Pie
 import Store exposing (..)
 import Url exposing (Url)
-import View exposing (ViewT)
+import View exposing (ViewT, onUrlChange)
 import View.Home
+import View.L1
+import View.L1.Graph
 
-
+    
 
 {- URL structure:
    home : /
@@ -39,24 +41,13 @@ main =
         }
 
 
-init : flags -> Url.Url -> Key -> ( Model, Cmd Msg )
-init _ url key =
-    ( { navKey = key
-      , url = url
-      , l = Nothing
-      , i = Nothing
-      , data = Nothing
-      , dataStatus = Loaded
-      }
-    , Cmd.none
-    )
-
-
 routes : List (ViewT Model Msg)
 routes =
     [ View.Home.view
+    , View.L1.view
+    , View.L1.Graph.view
     ]
-
+ 
 
 view : Model -> Document Msg
 view model =
@@ -72,48 +63,10 @@ view model =
 -}
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg state =
-    case msg of
-        FailedData e ->
-            ( { state | dataStatus = Failed e }, Cmd.none )
-
-        LoadData data ->
-            ( { state | data = Just data, dataStatus = Loaded }, Cmd.none )
-
-        Identity ->
-            ( state, Cmd.none )
-
-        _ ->
-            ( state, Cmd.none )
-
-
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
 
 
-onUrlChange _ =
-    Identity
-
-
 onUrlRequest _ =
     Identity
-
-
-fetchData : String -> Cmd Msg
-fetchData url =
-    let
-        processResponse : Result Http.Error Data.Data -> Msg
-        processResponse res =
-            case res of
-                Ok d ->
-                    LoadData d
-
-                Err e ->
-                    FailedData e
-    in
-    Http.get
-        { url = url
-        , expect = Http.expectJson processResponse Data.decodeData
-        }
