@@ -27,10 +27,11 @@ assemblePattern (Pattern base irs suffix) =
     aux w (i, l) = insertAt l i w
 
 stemWIrreg :: Conjugation -> [Pattern]
-stemWIrreg ws = map (`A.common` baseStem) ws
+stemWIrreg  ws = map (`A.common` baseStem) ws
   where
-    baseStem                = foldl1 f ws
-    f a b                   = patternCommon $ A.common a b
+    baseStem   = foldl1 merger ws
+    merger a b = patternCommon $ A.common a b
+    -- f a b    =  a b
 
 -- checks whether a given word is a Spanish verb (excluding reflexive ones)
 isVerbSpanish :: String -> Bool

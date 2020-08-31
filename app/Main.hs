@@ -44,10 +44,8 @@ cmpFiles a b = do
 
 main :: IO ()
 main = 
-  -- sortData "out4.2.json"
   readLines "verbsList.txt" 
-  >>= mapM processVerb
+  >>= mapM (processVerb extractConjugations)
   >>= pure . foldl1 mergeFormals
   >>= pure . doSorting
   >>= BL.putStr . encodePretty 
-  -- >>= foldM processVerb Nothing 

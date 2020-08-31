@@ -13,14 +13,23 @@ type Irreg       = (Int, Char)
 type Infinitive  = String
 -- baseStem, [irregularity], suffix
 data Pattern     = Pattern String [Irreg] String
-  deriving (Show)
+  deriving (Show, Eq)
 -- A non-specific version of `Pattern`
 type Verb        = (Infinitive, [[[Pattern]]]) -- ¿?
--- Index, baseForm, TransformedForm
-{- ex: [poder, puedo] -> [ Pattern (pd, [(0, o)], er) 
-                         , Pattern (pd, [(0, u), (1, e)], o) 
-                         ]
+{- v1: 
+  ex: [poder, puedo] -> [ Pattern (pd, [(0, o)], er) 
+                        , Pattern (pd, [(0, u), (1, e)], o) 
+                        ]
                      -> Transform (0, o, ue)
+
+   v2: Discarding the idea of irregularities, there is no base form; and therefore, no transformed ones, thus making the previous idea unfeasible.
+      (note: the example takes into account the whole present indicative conjugation (hence, 'e' is not a part of the common part), but only goes over two words: puede and podemos)
+   ex: [puede, podemos] -> [ Pattern "pd" [(0, 'u'), (1, 'e')] "e"
+                           , Pattern "pd" [(0, 'o')] "emos"
+                           ]
+                         -> [ Category ["ue"] "e"
+                            , Category ["o"] "emos"
+                            ]     
 -}
 type Transform   = String
 data Category    = Category [Transform] String
@@ -37,8 +46,8 @@ instance ToJSON Category where
     <> "suffix"          .= suffix
     
 instance FromJSON Category where
-  parseJSON (Object v) = Category <$>
-                        v .: "transformations" <*>
-                        v .: "suffix"
+  parseJSON (Object v) = Category 
+    <$> v .: "transformations" 
+    <*> v .: "suffix"
 
   parseJSON _          = empty

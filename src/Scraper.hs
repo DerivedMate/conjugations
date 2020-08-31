@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
 
 
 module Scraper where
@@ -8,7 +7,6 @@ module Scraper where
 import Network.HTTP.Conduit
 import Control.Monad
 import Data.List
-import Data.Functor (($>))
 import Helpers
 import Ling
 import Group
@@ -18,11 +16,7 @@ import System.IO
 import System.Directory
 import Text.HTML.Scalpel
 import Data.Char
-import Control.Exception
 import Debug.Trace
-import System.Mem
-import System.IO.Unsafe
-import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as B8
 
 type PVT = Formal
@@ -95,15 +89,6 @@ downloadVerbs dist_ urls =
 
 extractConjugations :: FilePath -> IO [[[String]]]
 extractConjugations file = 
-  
-  -- bracket
-  -- (extractRes file)
-  -- freeResources
-  -- (processAux . snd)
-
-  -- extractRes file
-  -- >>= processAux . snd
-  
   openFile file ReadMode
   >>= hGetContents
   >>= pure 
@@ -120,25 +105,6 @@ extractConjugations file =
   >>= pure . map transpose
        
   where 
-    {-freeResources (fh, !cnt) = seq cnt $ hClose $ fh
-    extractRes !file = do
-      fh  <- openFile file ReadMode 
-      cnt <- hGetContents fh
-      pure (fh, cnt)
-
-    processAux cnt = 
-      pure
-      $ map transpose
-      $ groupByLengths
-      $ partitionToLengths 
-        [ 3           -- 1x3
-        , 5,5,5,5,5,5 -- 6x5
-        , 4,4,4,4,4,4 -- 6x4
-        , 2,2,2,2,2   -- 5x2
-        ]
-      $ unpackMaybeList
-      $! split cnt
-    -}
     isStringLower str = all (isSpace <||> isLower) str
     split html        = do
       v  <- inf html
@@ -163,7 +129,7 @@ inspectVerb file =
   >>= print . aux
   where
     aux ws_ = map 
-              (map ( map assemblePattern . stemWIrreg ))
+              (map stemWIrreg)
               (normalizeConjugations ws_)
 
 testVerb :: String -> IO ()
@@ -179,7 +145,7 @@ testVerb file =
     printer r 
       | r         = verb <> "\t" <> "Success"
       | otherwise = verb <> "\t" <> "!!FAIL!!"
-    
+
     verb          = takeWhile isLetter 
                     $ dropWhileWhole (elem '/') file
     g ws_         = ws' == ws
@@ -190,9 +156,9 @@ testVerb file =
         ws  = normalizeConjugations ws_
            
 
-processVerb :: FilePath -> IO PVT
-processVerb path = do
-  cons       <- extractConjugations path
+processVerb :: (FilePath -> IO [[[String]]]) -> FilePath -> IO PVT
+processVerb conjugationExtractor path = do
+  cons       <- conjugationExtractor path
   categories <- pure 
                  $ makeFormal
                  $ categoryOfVerb
@@ -203,8 +169,11 @@ processVerb path = do
   let 
     verb       = verbalize path
     mapF       = map (Group [verb])
-    f1         = formalIdentify $ formalMap mapF mapF mapF categories
-    in pure  f1
+    f1         = formalIdentify 
+                  $ formalMap 
+                    mapF mapF mapF 
+                    categories
+    in pure f1
 
 mergeFormals :: PVT -> PVT -> PVT
 mergeFormals (Formal !a2 !a1 !a0) (Formal b2 b1 b0) = 
