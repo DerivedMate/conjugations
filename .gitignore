@@ -10,3 +10,4 @@ data*json
 dist*
 test.tsv
 !out.4.2.min.json
+!index.html
