@@ -2,7 +2,6 @@ module Store exposing (..)
 
 import Browser.Navigation exposing (Key, pushUrl)
 import Data exposing (Data)
-import Debug
 import Http
 import Url exposing (Url)
 
@@ -35,14 +34,13 @@ type Msg
 
 init : flags -> Url.Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
-    ( Debug.log "initial state"
-        { navKey = key
-        , url = url
-        , l = Nothing
-        , i = Nothing
-        , data = Nothing
-        , dataStatus = Loaded
-        }
+    ( { navKey = key
+      , url = url
+      , l = Nothing
+      , i = Nothing
+      , data = Nothing
+      , dataStatus = Loaded
+      }
     , Cmd.batch
         [ fetchData dataUrl
         ]
@@ -69,10 +67,10 @@ update msg state =
             ( { state | l = l }, Cmd.none )
 
         FailedData e ->
-            ( Debug.log "failed" { state | dataStatus = Failed e }, Cmd.none )
+            ( { state | dataStatus = Failed e }, Cmd.none )
 
         LoadData data ->
-            ( Debug.log "data" { state | data = Just data, dataStatus = Loaded }, Cmd.none )
+            ( { state | data = Just data, dataStatus = Loaded }, Cmd.none )
 
         Identity ->
             ( state, Cmd.none )

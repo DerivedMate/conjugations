@@ -76,9 +76,9 @@ categoryDecode =
 
 
 type alias Data =
-    { l2 : Array (List (Idd (Group String (L3 Category))))
-    , l1 : Array (List (Idd (Group String (L2 Category))))
-    , l0 : Array (List (Idd (Group String (L Category))))
+    { l2 : List (Idd (Group String (L3 Category)))
+    , l1 : List (Idd (Group String (L2 Category)))
+    , l0 : List (Idd (Group String (L Category)))
     }
 
 
@@ -86,27 +86,27 @@ decodeData : D.Decoder Data
 decodeData =
     D.map3 Data
         (D.field "l2" <|
-            D.map
-                (Array.fromList << groupBy iddId)
-            <|
+            --D.map
+            --    (Array.fromList << groupBy iddId)
+            --<|
                 D.list <|
                     iddDecode <|
                         groupDecode <|
                             l3Decode categoryDecode
         )
         (D.field "l1" <|
-            D.map
-                (Array.fromList << groupBy iddId)
-            <|
+            -- D.map
+            --     (Array.fromList << groupBy iddId)
+            -- <|
                 D.list <|
                     iddDecode <|
                         groupDecode <|
                             l2Decode categoryDecode
         )
         (D.field "l0" <|
-            D.map
-                (Array.fromList << groupBy iddId)
-            <|
+            -- D.map
+            --     (Array.fromList << groupBy iddId)
+            -- <|
                 D.list <|
                     iddDecode <|
                         groupDecode <|

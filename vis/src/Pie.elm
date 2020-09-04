@@ -2,20 +2,22 @@ module Pie exposing (..)
 
 import Array
 import Data exposing (..)
+import Store exposing (Msg)
 import Svg exposing (Svg, a, desc, g, path, svg, text, title)
 import Svg.Attributes exposing (attributeName, d, fill, style, title, viewBox, xlinkHref)
-import Url exposing (toString)
+import Svg.Events exposing (onClick)
+import Url exposing (Url, toString)
 
 
 type alias PrePie =
     { x : Int
-    , url : String
+    , url : Url
     }
 
 
 type alias PieAble =
     { percent : Float
-    , url : String
+    , url : Url
     }
 
 
@@ -61,7 +63,7 @@ getColor i =
     Array.get (modBy (Array.length colors) i) colors |> Maybe.withDefault "red"
 
 
-arcify : { lx : Float, ly : Float, accPr : Float, i : Int } -> List PieAble -> List (Svg msg) -> List (Svg msg)
+arcify : { lx : Float, ly : Float, accPr : Float, i : Int } -> List PieAble -> List (Svg Msg) -> List (Svg Msg)
 arcify { lx, ly, accPr, i } ps gs =
     case ps of
         [] ->
@@ -88,21 +90,19 @@ arcify { lx, ly, accPr, i } ps gs =
                 a_ =
                     "A 1 1 0 " ++ String.fromInt laf ++ " 1 " ++ String.fromFloat lx_ ++ " " ++ String.fromFloat ly_
 
-                lable =
+                label =
                     String.fromFloat ((p.percent * 1.0e4 |> floor |> toFloat) / 100) ++ "%"
 
                 -- path
                 g_ =
-                    a [ xlinkHref p.url ]
-                        [ g []
-                            [ Svg.title [] [ text lable ]
-                            , path [ d (String.join " " [ m, a_, l ]), fill (getColor i) ] []
-                            ]
+                    g [ onClick (Store.ChangeUrl p.url) ]
+                        [ Svg.title [] [ text label ]
+                        , path [ d (String.join " " [ m, a_, l ]), fill (getColor i) ] []
                         ]
             in
             arcify { lx = lx_, ly = ly_, accPr = accPr_, i = i + 1 } ps_ (g_ :: gs)
 
 
-pie : List PieAble -> Svg msg
+pie : List PieAble -> Svg Msg
 pie ps =
     svg [ viewBox "-1 -1 2 2", style "transform: rotate(-0.25turn)" ] (arcify { lx = 1.0, ly = 0.0, accPr = 0.0, i = 0 } ps [])

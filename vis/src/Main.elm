@@ -2,19 +2,19 @@ module Main exposing (..)
 
 import Browser exposing (..)
 import Browser.Navigation exposing (Key)
-import Data
+import Data exposing (L)
+import Graph
 import Html exposing (div, text)
 import Http
 import Json.Decode exposing (Error)
+import L
 import Pie
 import Store exposing (..)
 import Url exposing (Url)
 import View exposing (ViewT, onUrlChange)
 import View.Home
-import View.L1
-import View.L1.Graph
 
-    
+
 
 {- URL structure:
    home : /
@@ -44,10 +44,35 @@ main =
 routes : List (ViewT Model Msg)
 routes =
     [ View.Home.view
-    , View.L1.view
-    , View.L1.Graph.view
+    , L.makeView "l0" 
+        [ "participles"
+        -- indicative
+        , "present indicative"
+        , "preterite indicative"
+        , "imperfect indicative"
+        , "conditional indicative"
+        , "future indicative"
+        -- subjunctive
+        , "present subjunctive"
+        , "imperfect subjunctive 1"
+        , "imperfect subjunctive 2"
+        , "future subjunctive"
+        -- imperative
+        , "affirmative imperative"
+        , "negative imperative"
+        ]
+    , L.makeView "l1"
+        [ "participles"
+        , "indicative"
+        , "subjunctive"
+        , "imperative"
+        ]
+    , L.makeView "l2" [ "conjugations" ]
+    , Graph.makeView "l0" (\d -> d.l0)
+    , Graph.makeView "l1" (\d -> d.l1)
+    , Graph.makeView "l2" (\d -> d.l2)
     ]
- 
+
 
 view : Model -> Document Msg
 view model =
